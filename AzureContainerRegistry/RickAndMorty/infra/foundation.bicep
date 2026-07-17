@@ -35,7 +35,7 @@ resource pullIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-
 }
 
 resource registryPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registry.id, pullIdentity.properties.principalId, acrPullRoleDefinitionId)
+  name: guid(registry.id, pullIdentity.id, acrPullRoleDefinitionId)
   scope: registry
   properties: {
     principalId: pullIdentity.properties.principalId
