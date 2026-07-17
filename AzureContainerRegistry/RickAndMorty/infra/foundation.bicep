@@ -35,10 +35,10 @@ resource pullIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-
 }
 
 resource registryPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registry.id, pullIdentity.principalId, acrPullRoleDefinitionId)
+  name: guid(registry.id, pullIdentity.properties.principalId, acrPullRoleDefinitionId)
   scope: registry
   properties: {
-    principalId: pullIdentity.principalId
+    principalId: pullIdentity.properties.principalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: acrPullRoleDefinitionId
   }
@@ -54,4 +54,3 @@ output acrLoginServer string = registry.properties.loginServer
 output environmentName string = environment.name
 output identityName string = pullIdentity.name
 output identityResourceId string = pullIdentity.id
-
