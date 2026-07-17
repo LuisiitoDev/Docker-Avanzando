@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace RickAndMorty.Tests;
@@ -11,10 +12,9 @@ public sealed class WeatherForecastApiTests
 
     public WeatherForecastApiTests(WebApplicationFactory<Program> factory)
     {
-        _client = factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            AllowAutoRedirect = false
-        });
+        _client = factory
+            .WithWebHostBuilder(builder => builder.UseEnvironment("Testing"))
+            .CreateClient();
     }
 
     [Fact]
