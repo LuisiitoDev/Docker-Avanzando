@@ -1,0 +1,73 @@
+name: AZ-400 Pipeline Testing Lab
+
+on:
+  pull_request:
+    paths:
+      - "AzureContainerRegistry/RickAndMorty/**"
+      - "AzureContainerRegistry/RickAndMorty.Tests/**"
+      - ".github/workflows/az400-pipeline-testing.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build, test and collect coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore dependencies
+        run: >
+          dotnet restore
+          AzureContainerRegistry/RickAndMorty.Tests/RickAndMorty.Tests.csproj
+
+      - name: Build
+        run: >
+          dotnet build
+          AzureContainerRegistry/RickAndMorty.Tests/RickAndMorty.Tests.csproj
+          --configuration Release
+          --no-restore
+
+      - name: Run tests and collect coverage
+        run: >
+          dotnet test
+          AzureContainerRegistry/RickAndMorty.Tests/RickAndMorty.Tests.csproj
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=tests.trx"
+          --collect "XPlat Code Coverage"
+          --results-directory TestResults
+
+      - name: Upload test results and coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-and-coverage
+          path: TestResults
+          if-no-files-found: error
+          retention-days: 7
+
+  container:
+    name: Validate container build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build container image
+        run: >
+          docker build
+          --file AzureContainerRegistry/RickAndMorty/dockerfile
+          --tag rickandmorty:pr-${{ github.event.pull_request.number || github.run_number }}
+          AzureContainerRegistry/RickAndMorty
