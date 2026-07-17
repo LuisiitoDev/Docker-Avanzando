@@ -1,0 +1,36 @@
+name: Validate Bicep IaC
+
+on:
+  pull_request:
+    paths:
+      - 'AzureContainerRegistry/RickAndMorty/infra/**'
+      - '.github/workflows/validate-bicep-iac.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile Bicep templates
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az bicep install
+            az bicep build --file AzureContainerRegistry/RickAndMorty/infra/foundation.bicep
+            az bicep build --file AzureContainerRegistry/RickAndMorty/infra/app.bicep
+
+      - name: Validate deployment script syntax
+        run: bash -n AzureContainerRegistry/RickAndMorty/infra/deploy-iac.sh
+
+      - name: Upload compiled ARM templates
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-arm-templates
+          path: AzureContainerRegistry/RickAndMorty/infra/*.json
+
