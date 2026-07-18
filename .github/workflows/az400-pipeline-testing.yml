@@ -6,6 +6,7 @@ on:
       - "AzureContainerRegistry/RickAndMorty/**"
       - "AzureContainerRegistry/RickAndMorty.Tests/**"
       - ".github/workflows/az400-pipeline-testing.yml"
+      - "Labs/AZ400-03-Container-Runtime-Smoke-Test/**"
   workflow_dispatch:
 
 permissions:
@@ -57,9 +58,12 @@ jobs:
           retention-days: 7
 
   container:
-    name: Validate container build
+    name: Build and smoke-test container
     runs-on: ubuntu-latest
     needs: test
+    env:
+      IMAGE_NAME: rickandmorty:pr-${{ github.event.pull_request.number || github.run_number }}
+      CONTAINER_NAME: rickandmorty-smoke-test
 
     steps:
       - name: Checkout repository
@@ -69,5 +73,40 @@ jobs:
         run: >
           docker build
           --file AzureContainerRegistry/RickAndMorty/dockerfile
-          --tag rickandmorty:pr-${{ github.event.pull_request.number || github.run_number }}
+          --tag "$IMAGE_NAME"
           AzureContainerRegistry/RickAndMorty
+
+      - name: Start container
+        run: >
+          docker run
+          --detach
+          --name "$CONTAINER_NAME"
+          --env ASPNETCORE_ENVIRONMENT=Testing
+          --publish 8080:8080
+          "$IMAGE_NAME"
+
+      - name: Wait for API and run smoke test
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8080/weatherforecast \
+              --output response.json; then
+              jq --exit-status 'type == "array" and length == 5' response.json
+              echo "Runtime smoke test passed on attempt $attempt."
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "The API did not become ready within 60 seconds."
+          exit 1
+
+      - name: Capture container logs on failure
+        if: failure()
+        run: docker logs "$CONTAINER_NAME"
+
+      - name: Clean up container
+        if: always()
+        run: docker rm --force "$CONTAINER_NAME"
