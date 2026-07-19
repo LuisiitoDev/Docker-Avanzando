@@ -1,0 +1,17 @@
+{
+  "healthy_canary": {
+    "availability": 99.97,
+    "error_rate": 0.35,
+    "p95_latency_ms": 310
+  },
+  "degraded_canary": {
+    "availability": 98.4,
+    "error_rate": 3.8,
+    "p95_latency_ms": 920
+  },
+  "borderline_canary": {
+    "availability": 99.9,
+    "error_rate": 1.0,
+    "p95_latency_ms": 500
+  }
+}
