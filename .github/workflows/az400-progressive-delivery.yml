@@ -1,0 +1,66 @@
+name: AZ-400 Progressive Delivery Gate
+
+on:
+  pull_request:
+    paths:
+      - "Labs/AZ400-05-Progressive-Delivery-Gates/**"
+      - ".github/workflows/az400-progressive-delivery.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy-tests:
+    name: Test canary decision policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run unit tests
+        run: >-
+          python -m unittest
+          Labs/AZ400-05-Progressive-Delivery-Gates/test_evaluate_canary.py
+          -v
+
+  canary-gate:
+    name: Evaluate ${{ matrix.scenario }}
+    runs-on: ubuntu-latest
+    needs: policy-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scenario: healthy_canary
+            expected: promote
+          - scenario: degraded_canary
+            expected: rollback
+          - scenario: borderline_canary
+            expected: promote
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Evaluate telemetry against SLOs
+        run: >-
+          python Labs/AZ400-05-Progressive-Delivery-Gates/evaluate_canary.py
+          --input Labs/AZ400-05-Progressive-Delivery-Gates/scenarios.json
+          --scenario "${{ matrix.scenario }}"
+          --expect "${{ matrix.expected }}"
+          --output "reports/${{ matrix.scenario }}.json"
+
+      - name: Preserve decision evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-decision-${{ matrix.scenario }}
+          path: reports/${{ matrix.scenario }}.json
+          if-no-files-found: error
+          retention-days: 7
